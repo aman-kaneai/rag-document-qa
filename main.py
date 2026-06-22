@@ -16,7 +16,9 @@ from pathlib import Path
 # Demo mode — used when heavy deps aren't installed
 DEMO_MODE = False
 try:
-    from src.rag_pipeline import RAGPipeline
+    from src.rag_pipeline import RAGPipeline, FAISS_AVAILABLE, ST_AVAILABLE
+    if not FAISS_AVAILABLE or not ST_AVAILABLE:
+        DEMO_MODE = True
 except (ImportError, ModuleNotFoundError):
     DEMO_MODE = True
 
@@ -50,7 +52,7 @@ DEMO_QA = {
         "system (that fetches relevant document chunks) with a Large Language Model "
         "to produce accurate, grounded answers. [Source: AI_Overview.txt]"
     ),
-    "what is supervised learning": (
+    "what is supervised": (
         "Supervised learning trains models on labelled input-output pairs, allowing "
         "them to learn a mapping from inputs to outputs. [Source: ML_Concepts.txt]"
     ),
@@ -58,7 +60,7 @@ DEMO_QA = {
         "Overfitting occurs when a model memorises the training data so closely that "
         "it fails to generalise to new, unseen examples. [Source: ML_Concepts.txt]"
     ),
-    "what is deep learning": (
+    "what is deep": (
         "Deep Learning uses neural networks with many layers to learn complex "
         "patterns in data. [Source: AI_Overview.txt]"
     ),
@@ -66,9 +68,19 @@ DEMO_QA = {
 
 
 def demo_query(question: str) -> dict:
-    q = question.lower().strip("?")
+    q = question.lower().strip("?").strip()
+    # Match on the most specific/unique word in each key (last word)
     for key, answer in DEMO_QA.items():
-        if key in q or any(w in q for w in key.split()):
+        topic = key.split()[-1]  # e.g. "rag", "overfitting", "learning"
+        if topic in q:
+            return {
+                "question": question,
+                "answer": answer,
+                "sources": [{"rank": 1, "score": 0.92,
+                              "source": answer.split("[Source: ")[-1].rstrip("]"),
+                              "excerpt": answer[:100]}],
+                "latency_ms": 18.4,
+            }
             return {
                 "question": question,
                 "answer": answer,
